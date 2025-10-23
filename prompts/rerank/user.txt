@@ -1,0 +1,7 @@
+<query>{query}</query>
+
+<chunks_to_rank>
+{chunks_text}
+</chunks_to_rank>
+
+Please provide a RerankedResults object with a Label for each chunk.
