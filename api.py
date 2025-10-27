@@ -15,11 +15,11 @@ from fastapi_models import (AskResponse, ChatMessage, ChatQuery, ChatResponse,
                             DocumentResponse, DocumentUploadModel,
                             DocumentUploadResponse, Query)
 from models import DocumentModel
-from preprocess import chunk_document, parse_document
+from preprocess import  DocumentParser, DocumentChunker,DocumentProcessor #parse_document
 from providers import get_llm
-from rag_processor import ask_question_with_history
-from vector_store import (convert_vector, delete_collection,
-                          get_db_collection, retrieve_document, store_document)
+from rag_processor import RAGPipeline #ask_question_with_history
+from vector_store import VectorStore#(convert_vector, delete_collection,
+                          #get_db_collection, retrieve_document, store_document)
 
 load_dotenv(override=True)
 
@@ -29,11 +29,17 @@ FASTAPI_PORT= os.environ.get("FASTAPI_PORT")
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
+
 # In-memory storage for chat sessions (in production, use Redis or database)
 # Structure: {session_id: {"messages": [...], "collection_id": "...", "created_at": "...", "last_activity": "..."}}
 chat_sessions = {}
 model = get_llm()
-
+# document_parser = DocumentParser()
+# document_chunker = DocumentChunker()
+document_processor = DocumentProcessor()
+vector_store = VectorStore(os.environ.get("CHROMADB_LOCAL_DIR"))
+rag_pipeline = RAGPipeline(model=model)
 # Session timeout configuration (in hours)
 SESSION_TIMEOUT_HOURS = 24
 
@@ -60,7 +66,7 @@ def cleanup_inactive_sessions():
             # Delete collection if it exists
             if collection_id:
                 try:
-                    delete_collection(collection_id)
+                    vector_store.delete_collection(collection_id)
                     logger.info(f"Auto-deleted collection {collection_id} for inactive session {session_id}")
                 except Exception as e:
                     logger.error(f"Error auto-deleting collection {collection_id}: {e}")
@@ -107,7 +113,7 @@ def read_root():
 @app.delete("/collection/{collection_id}")
 def delete_collection_endpoint(collection_id: str)->Dict[str,Any]:
     try:
-        success = delete_collection(collection_id)
+        success = rag_pipeline.vector_store.delete_collection(collection_id)
         if success:
             return {"message": f"Collection {collection_id} deleted successfully", "status": "success"}
         else:
@@ -133,11 +139,14 @@ async def upload_documents(files: List[UploadFile], filepaths: List[str] = Form(
             # Parse PDF using PyMuPDF
             
             current_filepath = filepaths[i] if i < len(filepaths) else file.filename
-            document = parse_document(content, current_filepath, filetype=file.content_type)
-            chunks = chunk_document(document)
-            chunks = convert_vector(chunks)
+            chunks = document_processor.process_document(content, current_filepath, file.content_type)
+            # document = document_parser.parse_document(content, current_filepath, file.content_type)
+            # #document = parse_document(content, current_filepath, filetype=file.content_type)
+            # chunks = document_chunker.chunk_document(document)
+            #chunks = chunk_document(document)
+            chunks = rag_pipeline.vector_store.convert_chunks_to_vectors(chunks)
             num_chunks += len(chunks)
-            store_document(chunks,collection_id)
+            rag_pipeline.vector_store.store_document(chunks,collection_id)
             num_documents += 1
             processed_files.append(file.filename)
         return {"num_docs": num_documents,
@@ -172,8 +181,7 @@ def chat_with_history(query: ChatQuery) -> ChatResponse:
         chat_history = session_data.get("messages", [])
         
          # Process question with history
-        answer, updated_history = ask_question_with_history(
-            model, 
+        answer, updated_history = rag_pipeline.ask_question_with_history( 
             query.collection_id, 
             query.question, 
             chat_history
@@ -233,7 +241,7 @@ def delete_session_and_collection(session_id: str):
             # Delete the associated collection if it exists
             if collection_id:
                 try:
-                    success = delete_collection(collection_id)
+                    success = rag_pipeline.vector_store.delete_collection(collection_id)
                     if success:
                         logger.info(f"Collection {collection_id} deleted successfully for session {session_id}")
                     else:
