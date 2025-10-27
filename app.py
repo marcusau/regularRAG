@@ -1,30 +1,61 @@
 import streamlit as st
 import requests
 import uuid
+import os
+from datetime import datetime
+from dotenv import load_dotenv
 
-API_URL= "http://0.0.0.0:8000"
+load_dotenv(override=True)
+
+HOST = os.environ.get("HOST")
+FASTAPI_PORT= os.environ.get("FASTAPI_PORT")   
+
+API_URL= f"http://{HOST}:{FASTAPI_PORT}"
 
 
-def ask(query: str, collection_id: str) -> str:
+def chat_with_history(query: str, collection_id: str, session_id: str) -> tuple[str, str]:
+    """Enhanced chat function that maintains history"""
     with st.spinner("Asking the chatbot..."):
         try:
-            response = requests.post(f"{API_URL}/ask", json={"question": query, "collection_id": collection_id})
+            # Get current chat history from session state
+            chat_history = st.session_state.get('chat_history', [])
+
+            # Prepare chat history for API - handle both datetime objects and strings
+            history_for_api = []
+            for msg in chat_history:
+                timestamp = msg["timestamp"]
+                # If it's already a string, use it as is; if it's a datetime object, convert it
+                timestamp_str = timestamp if isinstance(timestamp, str) else timestamp.isoformat()
+                
+                history_for_api.append({
+                    "role": msg["role"], 
+                    "content": msg["content"], 
+                    "timestamp": timestamp_str
+                })
+
+            response = requests.post(f"{API_URL}/chat", json={
+                "question": query, 
+                "collection_id": collection_id,
+                "session_id": session_id,
+                "chat_history": history_for_api
+            })
+
             if response.status_code == 200:
                 data = response.json()
-                return data["answer"]
+                answer = data["answer"]
+                updated_history = data["chat_history"]
+                
+                # Update session state with new history
+                st.session_state.chat_history = updated_history
+                
+                return answer, data["session_id"]
             else:
-                error_msg = f"API Error {response.status_code}: {response.text}"
+                error_msg = f"API Error , status code:{response.status_code}, error: {response.text}"
                 st.error(error_msg)
-                return "I couldn't find an answer to your question."
-        except requests.exceptions.ConnectionError:
-            st.error("Cannot connect to the API server. Please make sure the API is running.")
-            return "I couldn't connect to the server."
-        except requests.exceptions.Timeout:
-            st.error("Request timed out. Please try again.")
-            return "Request timed out. Please try again."
+                return "I couldn't find an answer to your question.", session_id
         except Exception as e:
-            st.error(f"Unexpected error: {str(e)}")
-            return "An unexpected error occurred."
+            st.error(f"Unexpected error in chat with history: {str(e)}")
+            return "An unexpected error occurred in chat with history.", session_id
 
 def delete_collection_via_api(collection_id: str):
     """Delete a collection from the database via API"""
@@ -39,20 +70,65 @@ def delete_collection_via_api(collection_id: str):
         st.error(f"Error deleting collection: {str(e)}")
         return False
 
+def delete_session_and_collection_via_api(session_id: str):
+    """Delete both session and associated collection via API"""
+    try:
+        response = requests.delete(f"{API_URL}/session/{session_id}")
+        if response.status_code == 200:
+            data = response.json()
+            return data.get("session_cleared", False), data.get("collection_deleted", False)
+        else:
+            st.error(f"Failed to delete session: {response.text}")
+            return False, False
+    except Exception as e:
+        st.error(f"Error deleting session: {str(e)}")
+        return False, False
+
 def initialize_session():
-    """Initialize a new session with a unique collection ID"""
+    """Initialize a new session with a unique collection ID and session ID"""
     if 'collection_id' not in st.session_state:
         st.session_state.collection_id = str(uuid.uuid4())
+        st.session_state.session_id = str(uuid.uuid4())
+        st.session_state.chat_history = []
         st.session_state.session_initialized = True
         st.session_state.files_uploaded = False
 
+
 def cleanup_session():
     """Clean up the current session"""
-    if 'collection_id' in st.session_state:
+    if 'session_id' in st.session_state:
+        # Use the new API endpoint that deletes both session and collection
+        session_cleared, collection_deleted = delete_session_and_collection_via_api(st.session_state.session_id)
+        
+        if session_cleared:
+            st.success("✅ Session and collection cleaned up successfully!")
+        else:
+            st.warning("⚠️ Session cleanup may have failed")
+        
+        # Clear session state
+        for key in list(st.session_state.keys()):
+            del st.session_state[key]
+    elif 'collection_id' in st.session_state:
+        # Fallback to old method if session_id is not available
         delete_collection_via_api(st.session_state.collection_id)
         # Clear session state
         for key in list(st.session_state.keys()):
             del st.session_state[key]
+            
+def clear_chat_history():
+    """Clear the current chat history"""
+    st.session_state.chat_history = []
+    # Clear chat history on the server side
+    if 'session_id' in st.session_state:
+        try:
+            response = requests.delete(f"{API_URL}/chat/{st.session_state.session_id}")
+            if response.status_code == 200:
+                st.success("Chat history cleared successfully!")
+            else:
+                st.warning("Chat history may not have been cleared on the server")
+        except Exception as e:
+            st.warning(f"Error clearing chat history on server: {str(e)}")
+
     
 st.set_page_config(page_title="Chatbot", page_icon="🤖")
 st.title("Chatbot RAG")
@@ -143,18 +219,29 @@ with col2:
         cleanup_session()
         st.rerun()
 
-# Chat interface
-with st.chat_message(name="ai", avatar="ai"):
-    st.write("Hello! I'm the Chatbot RAG. How can I help you today?")
-
-query = st.chat_input(placeholder="Type your question here...")
-
-if query:
-    if not st.session_state.get('files_uploaded', False):
-        st.error("Please upload PDF files first before asking questions.")
+# Chat interface with history
+if st.session_state.get('files_uploaded', False):
+    # Display chat history
+    if st.session_state.get('chat_history'):
+        for msg in st.session_state.chat_history:
+            with st.chat_message(name=msg["role"], avatar="ai" if msg["role"] == "assistant" else "user"):
+                st.write(msg["content"])
     else:
+        with st.chat_message(name="ai", avatar="ai"):
+            st.write("Hello! I'm the Chatbot RAG. How can I help you today?")
+
+    query = st.chat_input(placeholder="Type your question here...")
+
+    if query:
         with st.chat_message("user"):
             st.write(query)
-        answer = ask(query, st.session_state.collection_id)
+        
+        answer, session_id = chat_with_history(query, st.session_state.collection_id, st.session_state.session_id)
+        
         with st.chat_message("ai"):
             st.write(answer)
+        
+        # Add clear chat button
+        if st.button("🗑️ Clear Chat History"):
+            clear_chat_history()
+            st.rerun()

@@ -1,14 +1,12 @@
 import os
-from typing import List,Union
-from dotenv import load_dotenv
+from typing import List, Union
 
+from dotenv import load_dotenv
 from langchain_ollama import OllamaEmbeddings
 from langchain_xai import ChatXAI
 
-# Add the project root to Python path
-
-
 from utils import timer
+
 
 # Load environment variables from .env file
 load_dotenv()

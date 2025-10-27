@@ -46,7 +46,7 @@ class ChunkModel(Document):
         doc.vector = vector
         return doc
 
-class DBSearchModel(BaseModel):
+class DBRetrieveModel(BaseModel):
     id: int = Field(description="index of the chunk")
     text: str = Field(description="content of the chunk")
     metadata: Dict[str,Any] = Field(description="metadata of the chunk")

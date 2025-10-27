@@ -1,9 +1,8 @@
-import os
 import functools
+import os
 from dataclasses import dataclass
 
 from utils import read_txtfile
-
 
 prompt_master_folder = "prompts"
 reranker_master_folder = os.path.join(prompt_master_folder,"rerank")
@@ -20,8 +19,6 @@ generator_user_path = os.path.join(generator_master_folder,"user.txt")
 
 generator_system_prompt = read_txtfile(generator_system_path)
 generator_user_prompt = read_txtfile(generator_user_path)
-
-
 
 @dataclass
 class ReRankPrompt:
