@@ -2,15 +2,34 @@ import streamlit as st
 import requests
 import uuid
 import os
+import time
 from datetime import datetime
 from dotenv import load_dotenv
 
-load_dotenv(override=True)
+# Do NOT override environment provided by Docker; .env values only fill missing vars
+load_dotenv(override=False)
 
-HOST = os.environ.get("HOST")
-FASTAPI_PORT= os.environ.get("FASTAPI_PORT")   
+HOST = os.environ.get("HOST", "localhost")
+FASTAPI_PORT = os.environ.get("FASTAPI_PORT", "8000")
 
-API_URL= f"http://{HOST}:{FASTAPI_PORT}"
+API_URL = f"http://{HOST}:{FASTAPI_PORT}"
+
+print(f"[DEBUG] Connecting to API at: {API_URL}")
+
+
+def test_api_connection(max_retries=3, delay=2):
+    """Test if the API server is reachable"""
+    for attempt in range(max_retries):
+        try:
+            response = requests.get(f"{API_URL}/", timeout=5)
+            if response.status_code == 200:
+                print(f"[DEBUG] API connection successful on attempt {attempt + 1}")
+                return True
+        except Exception as e:
+            print(f"[DEBUG] API connection attempt {attempt + 1} failed: {e}")
+            if attempt < max_retries - 1:
+                time.sleep(delay)
+    return False
 
 
 def chat_with_history(query: str, collection_id: str, session_id: str) -> tuple[str, str]:
@@ -155,9 +174,20 @@ if uploaded_files and not st.session_state.get('files_uploaded', False):
     # Add collection_id to the data
     data.append(('collection_id', st.session_state.collection_id))
     
+    # First, test API connection
+    if not test_api_connection():
+        st.error("⚠️ Cannot connect to the API server. Please make sure the API is running and try again.")
+        st.info(f"Attempting to connect to: {API_URL}")
+        st.stop()
+    
     try:
         with st.spinner("Uploading files..."):
-            response = requests.post(f"{API_URL}/feed/", files=files, data=data)
+            print(f"DEBUG: API_URL = {API_URL}")
+            print(f"DEBUG: files = {files}")
+            print(f"DEBUG: data = {data}")
+            response = requests.post(f"{API_URL}/feed", files=files, data=data, timeout=300)
+            print(f"DEBUG: Response status = {response.status_code}")
+            print(f"DEBUG: Response text = {response.text[:200] if response.text else 'Empty response'}")
         if response.status_code == 200:
             data = response.json()
             # Display detailed upload statistics
@@ -195,11 +225,14 @@ if uploaded_files and not st.session_state.get('files_uploaded', False):
         else:
             error_msg = f"Upload failed with status {response.status_code}: {response.text}"
             st.error(error_msg)
-    except requests.exceptions.ConnectionError:
+    except requests.exceptions.ConnectionError as e:
+        print(f"DEBUG: ConnectionError - {e}")
         st.error("Cannot connect to the API server. Please make sure the API is running.")
-    except requests.exceptions.Timeout:
+    except requests.exceptions.Timeout as e:
+        print(f"DEBUG: Timeout - {e}")
         st.error("Upload request timed out. Please try again.")
     except Exception as e:
+        print(f"DEBUG: General Exception - {e}")
         st.error(f"Error uploading files: {str(e)}")
 
 # Show upload status when files are already uploaded

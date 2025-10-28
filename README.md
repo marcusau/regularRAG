@@ -80,7 +80,33 @@ CHROMADB_LOCAL_DIR=./chromadb
 
 ## Usage
 
-### 1. Start the FastAPI Backend
+### Option 1: Using Docker (Recommended)
+
+The easiest way to run the application is using Docker Compose.
+
+#### Quick Start
+
+1. **Verify your setup**:
+   ```bash
+   ./check_setup.sh
+   ```
+   This will check if all required environment variables and dependencies are configured.
+
+2. **Build and run with Docker Compose**:
+   ```bash
+   docker-compose up --build
+   ```
+
+3. **Access the application**:
+   - **Streamlit UI**: http://localhost:8501
+   - **FastAPI Backend**: http://localhost:8000
+   - **API Docs**: http://localhost:8000/docs
+
+For detailed Docker setup instructions, see [DOCKER_SETUP.md](DOCKER_SETUP.md).
+
+### Option 2: Running Locally
+
+#### 1. Start the FastAPI Backend
 
 ```bash
 uvicorn api:app --host 0.0.0.0 --port 8000 --reload
@@ -96,7 +122,7 @@ STREAMLIT_BROWSER_GATHERUSAGESTATS=false STREAMLIT_SERVER_HEADLESS=true streamli
 
 The web interface will be available at `http://localhost:8501`
 
-### 3. Using the Application
+#### 3. Using the Application
 
 1. **Upload Documents**: Use the file uploader to upload one or more PDF files
 2. **Wait for Processing**: The system will process and vectorize your documents
@@ -149,6 +175,31 @@ Configure your XAI model in the `.env` file. Examples:
 - `grok-2`
 
 ## Troubleshooting
+
+### Docker-Specific Issues
+
+1. **"Cannot connect to the API server" in Streamlit UI**:
+   - **Cause**: Missing environment variables or FastAPI container not starting
+   - **Solution**: 
+     - Run `./check_setup.sh` to verify setup
+     - Ensure you have a `.env` file with `XAI_API_KEY` and other required variables
+     - Check FastAPI logs: `docker-compose logs fastapi`
+     - Verify Ollama is running: `ollama serve`
+
+2. **FastAPI container keeps restarting**:
+   - **Cause**: Missing dependencies or configuration
+   - **Solution**: 
+     - Check logs: `docker-compose logs fastapi`
+     - Verify `XAI_API_KEY` is set in `.env`
+     - Ensure Ollama is accessible at the configured URL
+
+3. **Port already in use**:
+   - **Solution**: Stop services using ports 8000 or 8501, or modify port mappings in `docker-compose.yml`
+
+4. **Ollama models not found**:
+   - **Solution**: Pull the required model: `ollama pull nomic-embed-text`
+
+For detailed Docker troubleshooting, see [DOCKER_SETUP.md](DOCKER_SETUP.md).
 
 ### Common Issues
 

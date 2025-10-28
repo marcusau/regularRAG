@@ -13,6 +13,7 @@ load_dotenv()
 os.environ["XAI_API_KEY"] = os.environ.get("XAI_API_KEY")
 XAI_MODEL = os.environ.get("XAI_MODEL")
 OLLAMA_EMBEDDING_MODEL = os.environ.get("OLLAMA_EMBEDDING_MODEL")
+OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
 
 class EmbeddingFunction:
     """
@@ -29,7 +30,7 @@ class EmbeddingFunction:
 
 def get_embedding(text:Union[str,List[str]])->List[float]:
     if isinstance(text,str) or isinstance(text,list) or all(isinstance(item,str) for item in text):
-        embedding_func = EmbeddingFunction(OllamaEmbeddings( model=OLLAMA_EMBEDDING_MODEL ))
+        embedding_func = EmbeddingFunction(OllamaEmbeddings( model=OLLAMA_EMBEDDING_MODEL,base_url=OLLAMA_BASE_URL ))
         return embedding_func(text)
     else:
         raise TypeError(f"text must be a string or a list of strings")

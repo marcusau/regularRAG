@@ -17,29 +17,23 @@ from fastapi_models import (AskResponse, ChatMessage, ChatQuery, ChatResponse,
 from models import DocumentModel
 from preprocess import  DocumentParser, DocumentChunker,DocumentProcessor #parse_document
 from providers import get_llm
-from rag_processor import RAGPipeline #ask_question_with_history
-from vector_store import VectorStore#(convert_vector, delete_collection,
-                          #get_db_collection, retrieve_document, store_document)
+from rag_processor import RAGPipeline 
+
 
 load_dotenv(override=True)
 
-HOST = os.environ.get("HOST")
-FASTAPI_PORT= os.environ.get("FASTAPI_PORT")   
+HOST = os.environ.get("HOST", "0.0.0.0")
+FASTAPI_PORT = int(os.environ.get("FASTAPI_PORT", "8000"))
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-
 
 # In-memory storage for chat sessions (in production, use Redis or database)
 # Structure: {session_id: {"messages": [...], "collection_id": "...", "created_at": "...", "last_activity": "..."}}
 chat_sessions = {}
 model = get_llm()
-# document_parser = DocumentParser()
-# document_chunker = DocumentChunker()
 document_processor = DocumentProcessor()
-vector_store = VectorStore(os.environ.get("CHROMADB_LOCAL_DIR"))
-rag_pipeline = RAGPipeline(model=model)
+rag_pipeline = RAGPipeline(model=model,db_path=os.environ.get("CHROMADB_LOCAL_DIR"))
 # Session timeout configuration (in hours)
 SESSION_TIMEOUT_HOURS = 24
 
@@ -66,7 +60,7 @@ def cleanup_inactive_sessions():
             # Delete collection if it exists
             if collection_id:
                 try:
-                    vector_store.delete_collection(collection_id)
+                    rag_pipeline.vector_store.delete_collection(collection_id)
                     logger.info(f"Auto-deleted collection {collection_id} for inactive session {session_id}")
                 except Exception as e:
                     logger.error(f"Error auto-deleting collection {collection_id}: {e}")
@@ -101,6 +95,12 @@ app = FastAPI(
     description="A simple chatbot using OpenAI. Enables asking questions and getting answers based on uploaded documents.",
     version="0.1",
 )
+
+@app.on_event("startup")
+async def startup_event():
+    """Start background tasks on application startup"""
+    start_cleanup_scheduler()
+    logger.info("FastAPI application started successfully")
 
 @app.get("/")
 def read_root():
@@ -140,10 +140,6 @@ async def upload_documents(files: List[UploadFile], filepaths: List[str] = Form(
             
             current_filepath = filepaths[i] if i < len(filepaths) else file.filename
             chunks = document_processor.process_document(content, current_filepath, file.content_type)
-            # document = document_parser.parse_document(content, current_filepath, file.content_type)
-            # #document = parse_document(content, current_filepath, filetype=file.content_type)
-            # chunks = document_chunker.chunk_document(document)
-            #chunks = chunk_document(document)
             chunks = rag_pipeline.vector_store.convert_chunks_to_vectors(chunks)
             num_chunks += len(chunks)
             rag_pipeline.vector_store.store_document(chunks,collection_id)
