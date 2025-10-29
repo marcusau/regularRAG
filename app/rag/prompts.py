@@ -7,9 +7,13 @@ used by different components of the RAG system, including reranking and text gen
 
 import functools
 import os
+import sys
+from pathlib import Path
 from dataclasses import dataclass
 
-from utils import read_txtfile
+PARENT_DIR = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(PARENT_DIR))
+from app.rag.utils import read_txtfile
 
 # Directory structure for organizing prompts
 prompt_master_folder = "prompts"  # Root directory for all prompt files

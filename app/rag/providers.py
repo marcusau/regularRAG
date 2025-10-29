@@ -6,13 +6,17 @@ handling configuration, initialization, and performance monitoring for external 
 """
 
 import os
+import sys
+from pathlib import Path
 from typing import List, Union
 
 from dotenv import load_dotenv
 from langchain_ollama import OllamaEmbeddings
 from langchain_xai import ChatXAI
 
-from utils import timer
+PARENT_DIR = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(PARENT_DIR))
+from app.rag.utils import timer
 
 # Load environment variables from .env file
 load_dotenv()

@@ -6,7 +6,7 @@
 # Streamlit server parameters - use environment variables with Docker-friendly defaults
 STREAMLIT_HOST="${STREAMLIT_HOST:-0.0.0.0}"        # Server address (0.0.0.0 for external access)
 STREAMLIT_PORT="${STREAMLIT_PORT:-8501}"           # Server port
-STREAMLIT_APP="${STREAMLIT_APP:-app.py}"
+STREAMLIT_APP="${STREAMLIT_APP:-app/web/app.py}"
 
 # API connection parameters (needed by app.py)
 HOST="${HOST:-fastapi}"                            # FastAPI host (default to 'fastapi' for Docker)

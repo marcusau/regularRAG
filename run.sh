@@ -4,7 +4,7 @@
 # Read configuration from environment variables with sensible defaults
 
 # Core application parameters
-APP="api:app"  # The FastAPI application module and instance
+APP="app.api.main:app"  # The FastAPI application module and instance
 
 # Network parameters - use environment variables with Docker-friendly defaults
 HOST="${HOST:-0.0.0.0}"  # Use environment variable, default to 0.0.0.0 for Docker

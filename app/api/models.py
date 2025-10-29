@@ -4,13 +4,18 @@ FastAPI Pydantic models for the RAG system API endpoints.
 This module defines all the request and response models used by the FastAPI endpoints
 for document processing, querying, and chat functionality in the RAG system.
 """
+import sys
+from pathlib import Path
 
 from datetime import datetime
 from typing import List, Literal, Optional
 
 from pydantic import BaseModel
 
-from models import DBRetrieveModel
+PARENT_DIR = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(PARENT_DIR))
+
+from app.rag.models import DBRetrieveModel
 
 
 class Query(BaseModel):

@@ -1,5 +1,6 @@
 import logging
 import os
+import sys
 
 from abc import ABC, abstractmethod
 from datetime import date, datetime
@@ -11,11 +12,14 @@ from langchain.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_core.prompts import PromptTemplate
 from langchain_xai import ChatXAI
 
-from fastapi_models import ChatHistory, ChatMessage, ChatQuery, ChatResponse
-from models import DBRetrieveModel, RerankerModel
-from prompts import Prompts
-from providers import get_llm
-from vector_store import VectorStore
+PARENT_DIR = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(PARENT_DIR))
+
+from app.rag.models import DBRetrieveModel, RerankerModel
+from app.api.models import ChatMessage
+from app.rag.prompts import Prompts
+from app.rag.providers import get_llm
+from app.rag.vector_store import VectorStore
 
 load_dotenv(override=True)
 logging.basicConfig(level=logging.INFO)

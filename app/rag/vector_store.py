@@ -12,15 +12,20 @@ the `CHROMADB_LOCAL_DIR` environment variable unless a path is provided.
 
 import logging
 import os
+import sys
 import uuid
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Union
 
 from dotenv import load_dotenv
 
 import chromadb
-from models import ChunkModel, DBRetrieveModel
-from preprocess import DocumentParser  # parse_document
-from providers import get_embedding
+
+PARENT_DIR = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(PARENT_DIR))
+from app.rag.models import ChunkModel, DBRetrieveModel
+from app.rag.preprocess import DocumentParser  # parse_document
+from app.rag.providers import get_embedding
 
 load_dotenv()
 

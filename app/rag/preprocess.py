@@ -1,5 +1,6 @@
 import logging
 import os
+import sys
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
@@ -9,8 +10,10 @@ import pymupdf
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from markdownify import markdownify
 
-from models import ChunkModel, DocumentModel
-from utils import timer
+PARENT_DIR = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(PARENT_DIR))
+from app.rag.models import ChunkModel, DocumentModel
+from app.rag.utils import timer
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -387,6 +390,7 @@ if __name__ == "__main__":
     with sample PDF files. Currently contains commented-out example usage.
     """
     filepath = "data/20130208-etf-performance-and-perspectives.pdf"
+
 
     # Example usage (commented out):
     # docs = parse_document(filepath)

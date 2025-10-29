@@ -19,6 +19,8 @@ Version: 0.1
 
 import logging
 import os
+import sys
+from pathlib import Path
 import threading
 import time
 import uuid
@@ -29,7 +31,10 @@ import uvicorn
 from dotenv import load_dotenv
 from fastapi import FastAPI, Form, HTTPException, UploadFile
 
-from fastapi_models import (
+PARENT_DIR = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(PARENT_DIR))
+
+from app.api.models import (
     ChatQuery,
     ChatResponse,
     DocumentResponse,
@@ -38,9 +43,9 @@ from fastapi_models import (
     Query,
 )
 
-from preprocess import DocumentProcessor
-from providers import get_llm
-from rag_processor import RAGPipeline
+from app.rag.preprocess import DocumentProcessor
+from app.rag.providers import get_llm
+from app.rag.rag_processor import RAGPipeline
 
 # Load environment variables from .env file
 load_dotenv(override=True)
