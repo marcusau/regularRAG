@@ -170,7 +170,7 @@ def start_cleanup_scheduler():
 # Initialize FastAPI application
 app = FastAPI(
     title="Chatbot RAG",
-    description="A simple chatbot using OpenAI. Enables asking questions and getting answers based on uploaded documents.",
+    description="A simple chatbot using XAI. Enables asking questions and getting answers based on uploaded documents.",
     version="0.1",
 )
 
@@ -196,7 +196,7 @@ async def startup_event():
 
 
 @app.get("/")
-def read_root():
+def read_root()->Dict[str, str]:
     """
     Root endpoint for API health check and basic information.
     

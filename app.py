@@ -35,7 +35,7 @@ FASTAPI_PORT = os.environ.get("FASTAPI_PORT", "8000")  # API server port
 
 # Construct API base URL
 API_URL = f"http://{HOST}:{FASTAPI_PORT}"
-
+print(f"API_URL in app.py: {API_URL}")
 
 
 def test_api_connection(max_retries=3, delay=2):
